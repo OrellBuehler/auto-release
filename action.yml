@@ -1,13 +1,16 @@
-name: 'Wait'
-description: 'Wait a designated number of milliseconds'
+name: "Auto Release"
+description: "Create a versioned release with a changelog from your commits"
 inputs:
-  milliseconds:  # id of input
-    description: 'number of milliseconds to wait'
+  major-branch:
+    description: "Target branch which increases the major version"
+    required: false
+    default: ""
+  minor-branch:
+    description: "Target branch which increases the minor version"
     required: true
-    default: '1000'
-outputs:
-  time: # output will be available to future steps
-    description: 'The current time after waiting'
+  patch-branch:
+    description: "Target branch which increaes the patch version"
+    required: true
 runs:
-  using: 'node16'
-  main: 'dist/index.js'
+  using: "node16"
+  main: "dist/index.js"

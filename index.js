@@ -14,7 +14,7 @@ async function run() {
 
     core.debug(new Date().toTimeString());
 
-    const changes = await changelog.getChanges(branch);
+    const changes = await changelog(branch);
 
     core.debug(changes);
 
@@ -27,7 +27,6 @@ async function run() {
     core.debug(`Tag name: ${tagName}`);
 
     core.info(new Date().toTimeString());
-    core.setOutput("time", new Date().toTimeString());
   } catch (error) {
     core.setFailed(error.message);
   }
