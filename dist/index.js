@@ -196,7 +196,7 @@ module.exports = async (token, branch, withDescription) => {
     }
     value.forEach((c) => {
       if (c.parsed.footer && c.parsed.footer.includes("BREAKING CHANGE")) {
-        changelog += `* [${c.parsed.subject}](${c.commitUrl}) :bangbang:\n`;
+        changelog += `* [${c.parsed.subject}](${c.commitUrl}) - BREAKING CHANGE :bangbang:\n`;
       } else {
         changelog += `* [${c.parsed.subject}](${c.commitUrl})\n`;
       }
@@ -30804,7 +30804,6 @@ var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
 (() => {
 const core = __nccwpck_require__(2186);
-const github = __nccwpck_require__(5438);
 
 const changelog = __nccwpck_require__(2370);
 const version = __nccwpck_require__(3195);
@@ -30814,16 +30813,16 @@ const release = __nccwpck_require__(4315);
 async function run() {
   try {
     const token = core.getInput("token");
-    const target = core.getInput("target");
+    const target = core.getInput("target-branch");
+    const sourceBranch = core.getInput("source-branch");
     const withDescription = core.getBooleanInput("with-description");
     const majorBranch = core.getInput("major-branch");
     const minorBranch = core.getInput("minor-branch");
     const patchBranch = core.getInput("patch-branch");
-    const branch = github.context.ref.replace("refs/heads/", "");
 
     core.debug(new Date().toTimeString());
 
-    const changes = await changelog(token, branch, withDescription);
+    const changes = await changelog(token, sourceBranch, withDescription);
 
     core.debug(changes);
 
