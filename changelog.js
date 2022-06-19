@@ -188,7 +188,7 @@ module.exports = async (token, branch, withDescription) => {
         break;
     }
     value.forEach((c) => {
-      if (c.parsed.footer.contains("BREAKING CHANGE")) {
+      if (c.parsed.footer && c.parsed.footer.includes("BREAKING CHANGE")) {
         changelog += `* [${c.parsed.subject}](${c.commitUrl}) :bangbang:\n`;
       } else {
         changelog += `* [${c.parsed.subject}](${c.commitUrl})\n`;
