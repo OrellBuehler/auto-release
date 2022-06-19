@@ -194,8 +194,12 @@ module.exports = async (token, branch, withDescription) => {
       } else {
         changelog += `* [${c.parsed.subject}](${c.commitUrl})\n`;
       }
-      if (withDescription && c.body !== undefined && c.body.length > 0) {
-        changelog += `\t> ${c.body}\n\n`;
+      if (
+        withDescription &&
+        c.parsed.body !== undefined &&
+        c.parsed.body.length > 0
+      ) {
+        changelog += `\t> ${c.parsed.body}\n\n`;
       }
     });
     changelog += "\n\n";
