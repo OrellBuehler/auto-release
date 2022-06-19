@@ -2,14 +2,14 @@ const core = require("@actions/core");
 const github = require("@actions/github");
 const parser = require("conventional-commits-parser");
 
-const groupBy = function (xs, key) {
+const groupBy = function (xs, key, subkey) {
   return xs.reduce(function (rv, x) {
-    (rv[x[key]] = rv[x[key]] || []).push(x);
+    (rv[x[key][subkey]] = rv[x[key][subkey]] || []).push(x);
     return rv;
   }, {});
 };
 
-module.exports = async (token, branch) => {
+module.exports = async (token, branch, withDescription) => {
   const octokit = github.getOctokit(token);
 
   const queryLatestTag = `query ($owner: String!, $name: String!) {
@@ -83,8 +83,15 @@ module.exports = async (token, branch) => {
     throw new Error("No commits found since last tag");
   }
 
-  let messages = resultCommitsSinceDate.repository.object.history.nodes.map(
-    (commit) => commit.message
+  let commits = resultCommitsSinceDate.repository.object.history.nodes.map(
+    (commit) => {
+      // eslint-disable-next-line no-unused-labels
+      message: commit.message;
+      // eslint-disable-next-line no-unused-labels
+      sha: commit.oid;
+      // eslint-disable-next-line no-unused-labels
+      url: commit.commitUrl;
+    }
   );
 
   let hasNextPage =
@@ -104,6 +111,8 @@ module.exports = async (token, branch) => {
                   endCursor
                 }
                 nodes {
+                  oid
+                  commitUrl
                   message
                 }
               }
@@ -123,10 +132,17 @@ module.exports = async (token, branch) => {
       }
     );
 
-    messages = [
-      ...messages,
+    commits = [
+      ...commits,
       ...resultCommitsSinceDateAfterCursor.repository.object.history.nodes.map(
-        (commit) => commit.message
+        (commit) => {
+          // eslint-disable-next-line no-unused-labels
+          message: commit.message;
+          // eslint-disable-next-line no-unused-labels
+          sha: commit.oid;
+          // eslint-disable-next-line no-unused-labels
+          url: commit.commitUrl;
+        }
       ),
     ];
 
@@ -138,22 +154,69 @@ module.exports = async (token, branch) => {
         .endCursor;
   }
 
-  const parsedMessages = [];
+  const parsedCommits = [];
 
-  messages.forEach((msg) => parsedMessages.push(parser.sync(msg)));
+  commits.forEach((commit) =>
+    parsedCommits.push({
+      sha: commit.sha,
+      url: commit.url,
+      parsed: parser.sync(commit.message),
+    })
+  );
 
-  const grouped = groupBy(parsedMessages, "type");
+  const grouped = groupBy(parsedCommits, "parsed", "type");
 
   core.debug(grouped);
 
   let changelog = "";
 
   for (const [key, value] of Object.entries(grouped)) {
-    changelog += `## ${key}\n`;
-    value.forEach((commit) => {
-      changelog += `* ${commit.subject}\n`;
+    switch (key) {
+      case "build":
+        changelog += `## Build\n\n`;
+        break;
+      case "ci":
+        changelog += `## CI\n\n`;
+        break;
+      case "docs":
+        changelog += `## Documentation\n\n`;
+        break;
+      case "feat":
+        changelog += `## Features\n\n`;
+        break;
+      case "fix":
+        changelog += `## Bug Fixes\n\n`;
+        break;
+      case "perf":
+        changelog += `## Performance\n\n`;
+        break;
+      case "refactor":
+        changelog += `## Refactoring\n\n`;
+        break;
+      case "revert":
+        changelog += `## Revert\n\n`;
+        break;
+      case "style":
+        changelog += `## Style\n\n`;
+        break;
+      case "test":
+        changelog += `## Tests\n\n`;
+        break;
+      default:
+        changelog += `## Other\n\n`;
+        break;
+    }
+    value.forEach((c) => {
+      if (c.parsed.footer.contains("BREAKING CHANGE")) {
+        changelog += `* [${c.parsed.subject}](${c.commitUrl}) :bangbang:\n`;
+      } else {
+        changelog += `* [${c.parsed.subject}](${c.commitUrl})\n`;
+      }
+      if (withDescription && c.body !== undefined && c.body.length > 0) {
+        changelog += `\t> ${c.body}\n\n`;
+      }
     });
-    changelog += "\n";
+    changelog += "\n\n";
   }
 
   return changelog;

@@ -10,6 +10,7 @@ async function run() {
   try {
     const token = core.getInput("token");
     const target = core.getInput("target");
+    const withDescription = core.getBooleanInput("with-description");
     const majorBranch = core.getInput("major-branch");
     const minorBranch = core.getInput("minor-branch");
     const patchBranch = core.getInput("patch-branch");
@@ -17,7 +18,7 @@ async function run() {
 
     core.debug(new Date().toTimeString());
 
-    const changes = await changelog(token, branch);
+    const changes = await changelog(token, branch, withDescription);
 
     core.debug(changes);
 
