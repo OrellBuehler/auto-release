@@ -15,6 +15,10 @@ module.exports = async (branch) => {
     name: github.context.repo.repo,
   });
 
+  if (result.repository.refs.nodes.length === 0) {
+    throw new Error("No tags found");
+  }
+
   const latestTag = result.repository.refs.nodes[0].name;
 
   const queryDateOfTag = `query ($owner: String!, $name: String!, $tag: String!) {
@@ -41,6 +45,10 @@ module.exports = async (branch) => {
           ... on Commit {
             history(first: 100, since: $date) {
               totalCount
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
               nodes {
                 message
               }
@@ -56,6 +64,10 @@ module.exports = async (branch) => {
     branch: branch,
     date: dateOfTag,
   });
+
+  if (resultCommitsSinceDate.repository.object.history.totalCount === 0) {
+    throw new Error("No commits found since last tag");
+  }
 
   let messages = resultCommitsSinceDate.repository.object.history.nodes.map(
     (commit) => commit.message
