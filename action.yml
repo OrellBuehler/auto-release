@@ -5,8 +5,11 @@ inputs:
   token:
     description: "GitHub token with access to this repository"
     required: true
-  target:
+  target-branch:
     description: "Target branch of the action, used to determine which is the next version"
+    required: true
+  source-branch:
+    description: "Source branch of the action, used to get the commit messages since the last version tag"
     required: true
   with-description:
     description: "When set adds the body of the commit to the changelog"

@@ -1,5 +1,4 @@
 const core = require("@actions/core");
-const github = require("@actions/github");
 
 const changelog = require("./changelog");
 const version = require("./version");
@@ -9,16 +8,16 @@ const release = require("./release");
 async function run() {
   try {
     const token = core.getInput("token");
-    const target = core.getInput("target");
+    const target = core.getInput("target-branch");
+    const sourceBranch = core.getInput("source-branch");
     const withDescription = core.getBooleanInput("with-description");
     const majorBranch = core.getInput("major-branch");
     const minorBranch = core.getInput("minor-branch");
     const patchBranch = core.getInput("patch-branch");
-    const branch = github.context.ref.replace("refs/heads/", "");
 
     core.debug(new Date().toTimeString());
 
-    const changes = await changelog(token, branch, withDescription);
+    const changes = await changelog(token, sourceBranch, withDescription);
 
     core.debug(changes);
 
