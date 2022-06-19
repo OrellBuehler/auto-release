@@ -1,5 +1,13 @@
+const core = require("@actions/core");
 const github = require("@actions/github");
 const parser = require("conventional-commits-parser");
+
+const groupBy = function (xs, key) {
+  return xs.reduce(function (rv, x) {
+    (rv[x[key]] = rv[x[key]] || []).push(x);
+    return rv;
+  }, {});
+};
 
 module.exports = async (token, branch) => {
   const octokit = github.getOctokit(token);
@@ -23,6 +31,8 @@ module.exports = async (token, branch) => {
 
   const latestTag = result.repository.refs.nodes[0].name;
 
+  core.debug(`Latest tag: ${latestTag}`);
+
   const queryDateOfTag = `query ($owner: String!, $name: String!, $tag: String!) {
           repository(owner: $owner, name: $name) {
             object(expression: $tag) {
@@ -40,6 +50,8 @@ module.exports = async (token, branch) => {
   });
 
   const dateOfTag = resultDateOfTag.repository.object.committedDate;
+
+  core.debug(`Date of last tag: ${dateOfTag}`);
 
   const queryCommitsSinceDate = `query ($owner: String!, $name: String!, $branch: String! $date: GitTimestamp!) {
       repository(owner: $owner, name: $name) {
@@ -130,5 +142,19 @@ module.exports = async (token, branch) => {
 
   messages.forEach((msg) => parsedMessages.push(parser.sync(msg)));
 
-  return parsedMessages;
+  const grouped = groupBy(parsedMessages, "type");
+
+  core.debug(grouped);
+
+  let changelog = "";
+
+  for (const [key, value] of Object.entries(grouped)) {
+    changelog += `## ${key}\n`;
+    value.forEach((commit) => {
+      changelog += `* ${commit.subject}\n`;
+    });
+    changelog += "\n";
+  }
+
+  return changelog;
 };
