@@ -136,16 +136,14 @@ module.exports = async (token, branch, withDescription) => {
         .endCursor;
   }
 
-  const parsedCommits = [];
+  commits.forEach((commit) => (commit["parsed"] = parser.sync(commit.message)));
 
-  commits.forEach((commit) =>
-    parsedCommits.push({
-      ...commit,
-      parsed: parser.sync(commit.message),
-    })
-  );
+  core.debug(commits);
 
-  const grouped = groupBy(parsedCommits, "parsed", "type");
+  const grouped = groupBy(commits, "parsed", "type");
+
+  core.debug(grouped);
+
   const ordered = Object.keys(grouped)
     .sort()
     .reduce((obj, key) => {
