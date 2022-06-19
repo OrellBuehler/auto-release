@@ -1,16 +1,19 @@
 name: "Auto Release"
 description: "Create a versioned release with a changelog from your commits"
 inputs:
-  major-branch:
-    description: "Target branch which increases the major version"
-    required: false
-    default: ""
+  token:
+    description: "GitHub token with access to this repository"
+    required: true
   minor-branch:
     description: "Target branch which increases the minor version"
     required: true
   patch-branch:
     description: "Target branch which increaes the patch version"
     required: true
+  major-branch:
+    description: "Target branch which increases the major version"
+    required: false
+    default: ""
 runs:
   using: "node16"
   main: "dist/index.js"
