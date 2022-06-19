@@ -64,6 +64,7 @@ module.exports = async (token, branch, withDescription) => {
                 endCursor
               }
               nodes {
+                commitUrl
                 message
               }
             }
@@ -102,7 +103,6 @@ module.exports = async (token, branch, withDescription) => {
                   endCursor
                 }
                 nodes {
-                  oid
                   commitUrl
                   message
                 }
