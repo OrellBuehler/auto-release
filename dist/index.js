@@ -89,16 +89,7 @@ module.exports = async (token, branch, withDescription) => {
     throw new Error("No commits found since last tag");
   }
 
-  let commits = resultCommitsSinceDate.repository.object.history.nodes.map(
-    (commit) => {
-      // eslint-disable-next-line no-unused-labels
-      message: commit.message;
-      // eslint-disable-next-line no-unused-labels
-      sha: commit.oid;
-      // eslint-disable-next-line no-unused-labels
-      url: commit.commitUrl;
-    }
-  );
+  let commits = resultCommitsSinceDate.repository.object.history.nodes;
 
   let hasNextPage =
     resultCommitsSinceDate.repository.object.history.pageInfo.hasNextPage;
@@ -140,16 +131,7 @@ module.exports = async (token, branch, withDescription) => {
 
     commits = [
       ...commits,
-      ...resultCommitsSinceDateAfterCursor.repository.object.history.nodes.map(
-        (commit) => {
-          // eslint-disable-next-line no-unused-labels
-          message: commit.message;
-          // eslint-disable-next-line no-unused-labels
-          sha: commit.oid;
-          // eslint-disable-next-line no-unused-labels
-          url: commit.commitUrl;
-        }
-      ),
+      ...resultCommitsSinceDateAfterCursor.repository.object.history.nodes,
     ];
 
     hasNextPage =
@@ -164,8 +146,7 @@ module.exports = async (token, branch, withDescription) => {
 
   commits.forEach((commit) =>
     parsedCommits.push({
-      sha: commit.sha,
-      url: commit.url,
+      ...commit,
       parsed: parser.sync(commit.message),
     })
   );
