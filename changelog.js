@@ -1,7 +1,9 @@
 const github = require("@actions/github");
 const parser = require("conventional-commits-parser");
 
-module.exports = async (branch) => {
+module.exports = async (token, branch) => {
+  const octokit = github.getOctokit(token);
+
   const queryLatestTag = `query ($owner: String!, $name: String!) {
         repository(owner: $owner, name: $name) {
             refs(refPrefix: "refs/tags/", last: 1) {
@@ -10,7 +12,7 @@ module.exports = async (branch) => {
         }
     }`;
 
-  const result = await github.graphql(queryLatestTag, {
+  const result = await octokit.graphql(queryLatestTag, {
     owner: github.context.repo.owner,
     name: github.context.repo.repo,
   });
@@ -31,7 +33,7 @@ module.exports = async (branch) => {
           }
         }`;
 
-  const resultDateOfTag = await github.graphql(queryDateOfTag, {
+  const resultDateOfTag = await octokit.graphql(queryDateOfTag, {
     owner: "OrellBuehler",
     name: "github-changelog",
     tag: latestTag,
@@ -58,7 +60,7 @@ module.exports = async (branch) => {
       }
     }`;
 
-  const resultCommitsSinceDate = await github.graphql(queryCommitsSinceDate, {
+  const resultCommitsSinceDate = await octokit.graphql(queryCommitsSinceDate, {
     owner: github.context.repo.owner,
     name: github.context.repo.repo,
     branch: branch,
@@ -98,7 +100,7 @@ module.exports = async (branch) => {
         }
       }`;
 
-    let resultCommitsSinceDateAfterCursor = await github.graphql(
+    let resultCommitsSinceDateAfterCursor = await octokit.graphql(
       queryCommitsSinceDateAfterCursor,
       {
         owner: github.context.repo.owner,

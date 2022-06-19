@@ -7,6 +7,7 @@ const version = require("./version");
 // most @actions toolkit packages have async methods
 async function run() {
   try {
+    const token = core.getInput("token");
     const majorBranch = core.getInput("major-branch");
     const minorBranch = core.getInput("minor-branch");
     const patchBranch = core.getInput("patch-branch");
@@ -14,11 +15,11 @@ async function run() {
 
     core.debug(new Date().toTimeString());
 
-    const changes = await changelog(branch);
+    const changes = await changelog(token, branch);
 
     core.debug(changes);
 
-    const tagName = await version(github.ref_name, {
+    const tagName = await version(token, github.context.ref_name, {
       majorBranch: majorBranch,
       minorBranch: minorBranch,
       patchBranch: patchBranch,

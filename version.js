@@ -1,6 +1,12 @@
 const github = require("@actions/github");
 
-module.exports = async (target, { majorBranch, minorBranch, patchBranch }) => {
+module.exports = async (
+  token,
+  target,
+  { majorBranch, minorBranch, patchBranch }
+) => {
+  const octokit = github.getOctokit(token);
+
   const query = `query ($owner: String!, $name: String!) {
         repository(owner: $owner, name: $name) {
             refs(refPrefix: "refs/tags/", last: 1) {
@@ -9,7 +15,7 @@ module.exports = async (target, { majorBranch, minorBranch, patchBranch }) => {
         }
     }`;
 
-  const result = await github.graphql(query, {
+  const result = await octokit.graphql(query, {
     owner: github.context.repo.owner,
     name: github.context.repo.repo,
   });
