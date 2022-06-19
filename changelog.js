@@ -146,12 +146,18 @@ module.exports = async (token, branch, withDescription) => {
   );
 
   const grouped = groupBy(parsedCommits, "parsed", "type");
+  const ordered = Object.keys(grouped)
+    .sort()
+    .reduce((obj, key) => {
+      obj[key] = grouped[key];
+      return obj;
+    });
 
-  core.debug(grouped);
+  core.debug(ordered);
 
   let changelog = "";
 
-  for (const [key, value] of Object.entries(grouped)) {
+  for (const [key, value] of Object.entries(ordered)) {
     switch (key) {
       case "build":
         changelog += `## Build\n\n`;
