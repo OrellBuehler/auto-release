@@ -1,4 +1,5 @@
 name: "Auto Release"
+author: "Orell Bühler"
 description: "Create a versioned release with a changelog from your commits"
 inputs:
   token:
@@ -7,6 +8,10 @@ inputs:
   target:
     description: "Target branch of the action, used to determine which is the next version"
     required: true
+  with-description:
+    description: "When set adds the body of the commit to the changelog"
+    required: false
+    default: false
   minor-branch:
     description: "Target branch which increases the minor version"
     required: true
@@ -16,7 +21,7 @@ inputs:
   major-branch:
     description: "Target branch which increases the major version"
     required: false
-    default: ""
+    default: null
 runs:
   using: "node16"
   main: "dist/index.js"
