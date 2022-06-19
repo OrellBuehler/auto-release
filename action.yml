@@ -4,6 +4,9 @@ inputs:
   token:
     description: "GitHub token with access to this repository"
     required: true
+  target:
+    description: "Target branch of the action, used to determine which is the next version"
+    required: true
   minor-branch:
     description: "Target branch which increases the minor version"
     required: true
