@@ -144,18 +144,15 @@ module.exports = async (token, branch, withDescription) => {
 
   commits.forEach((commit) => (commit["parsed"] = parser.sync(commit.message)));
 
-  core.debug(commits);
-
   const grouped = groupBy(commits, "parsed", "type");
-
-  core.debug(grouped);
+  delete grouped["null"]; //remove all commits without type
 
   const ordered = Object.keys(grouped)
     .sort()
     .reduce((obj, key) => {
       obj[key] = grouped[key];
       return obj;
-    });
+    }, {});
 
   core.debug(ordered);
 
