@@ -1,3 +1,4 @@
+const core = require("@actions/core");
 const github = require("@actions/github");
 
 module.exports = async (
@@ -21,6 +22,7 @@ module.exports = async (
   });
 
   const latestTag = result.repository.refs.nodes[0].name;
+  core.debug(`latestTag: ${latestTag}`);
   const versionPart = latestTag.substring(1);
   const versionNumbers = versionPart.split(".");
   var major = versionNumbers[0];
