@@ -9,7 +9,10 @@ const groupBy = function (xs, key, subkey) {
   }, {});
 };
 
-module.exports = async (token, branch, withDescription) => {
+module.exports = async (token) => {
+  const sourceBranch = core.getInput("source-branch");
+  const withDescription = core.getBooleanInput("with-description");
+
   const octokit = github.getOctokit(token);
 
   const queryLatestTag = `query ($owner: String!, $name: String!) {
@@ -25,33 +28,46 @@ module.exports = async (token, branch, withDescription) => {
     name: github.context.repo.repo,
   });
 
+  let startDate;
+
   if (result.repository.refs.nodes.length === 0) {
-    throw new Error("No tags found");
-  }
+    const queryRepoCreationDate = `query ($owner: String!, $name: String!) {
+      repository(owner: $owner, name: $name) {
+        createdAt
+      }
+    }`;
 
-  const latestTag = result.repository.refs.nodes[0].name;
+    const resultReporCreationDate = await octokit.graphql(
+      queryRepoCreationDate,
+      {
+        owner: github.context.repo.owner,
+        name: github.context.repo.repo,
+      }
+    );
 
-  core.debug(`Latest tag: ${latestTag}`);
-
-  const queryDateOfTag = `query ($owner: String!, $name: String!, $tag: String!) {
-          repository(owner: $owner, name: $name) {
-            object(expression: $tag) {
-              ... on Commit {
-                committedDate
+    startDate = resultReporCreationDate.repository.createdAt;
+  } else {
+    const latestTag = result.repository.refs.nodes[0].name;
+    const queryDateOfTag = `query ($owner: String!, $name: String!, $tag: String!) {
+            repository(owner: $owner, name: $name) {
+              object(expression: $tag) {
+                ... on Commit {
+                  committedDate
+                }
               }
             }
-          }
-        }`;
+          }`;
 
-  const resultDateOfTag = await octokit.graphql(queryDateOfTag, {
-    owner: "OrellBuehler",
-    name: "github-changelog",
-    tag: latestTag,
-  });
+    const resultDateOfTag = await octokit.graphql(queryDateOfTag, {
+      owner: github.context.repo.owner,
+      name: github.context.repo.repo,
+      tag: latestTag,
+    });
 
-  const dateOfTag = resultDateOfTag.repository.object.committedDate;
+    startDate = resultDateOfTag.repository.object.committedDate;
+  }
 
-  core.debug(`Date of last tag: ${dateOfTag}`);
+  core.debug(`Loading commits since ${startDate} on branch ${sourceBranch}.`);
 
   const queryCommitsSinceDate = `query ($owner: String!, $name: String!, $branch: String! $date: GitTimestamp!) {
       repository(owner: $owner, name: $name) {
@@ -76,12 +92,15 @@ module.exports = async (token, branch, withDescription) => {
   const resultCommitsSinceDate = await octokit.graphql(queryCommitsSinceDate, {
     owner: github.context.repo.owner,
     name: github.context.repo.repo,
-    branch: branch,
-    date: dateOfTag,
+    branch: sourceBranch,
+    date: startDate,
   });
 
   if (resultCommitsSinceDate.repository.object.history.totalCount === 0) {
-    throw new Error("No commits found since last tag");
+    core.warning(
+      `No commits found since ${startDate} on branch ${sourceBranch}. Returning empty changelog!`
+    );
+    return "";
   }
 
   let commits = resultCommitsSinceDate.repository.object.history.nodes;
@@ -117,8 +136,8 @@ module.exports = async (token, branch, withDescription) => {
       {
         owner: github.context.repo.owner,
         name: github.context.repo.repo,
-        branch: branch,
-        date: dateOfTag,
+        branch: sourceBranch,
+        date: startDate,
         cursor: cursor,
       }
     );
@@ -141,6 +160,13 @@ module.exports = async (token, branch, withDescription) => {
   const grouped = groupBy(commits, "parsed", "type");
   delete grouped["null"]; //remove all commits without type
 
+  if (Object.keys(grouped).length === 0) {
+    core.warning(
+      `No commits matching the convention template found since ${startDate} on branch ${sourceBranch}. Returning empty changelog!`
+    );
+    return "";
+  }
+
   const ordered = Object.keys(grouped)
     .sort()
     .reduce((obj, key) => {
@@ -148,7 +174,7 @@ module.exports = async (token, branch, withDescription) => {
       return obj;
     }, {});
 
-  core.debug(ordered);
+  core.debug(`Parsed and ordered commit data:\n${JSON.stringify(ordered)}`);
 
   let changelog = "";
 
@@ -201,5 +227,6 @@ module.exports = async (token, branch, withDescription) => {
     changelog += "\n\n";
   }
 
+  core.debug(`Changelog:\n ${changelog}`);
   return changelog;
 };
