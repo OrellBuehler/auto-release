@@ -23,14 +23,13 @@ module.exports = async (token) => {
     name: github.context.repo.repo,
   });
 
-  let latestTag = initialTag;
-
   if (result.repository.refs.nodes.length === 0) {
     core.info(`No tag found, creating initial tag: ${initialTag}`);
-  } else {
-    latestTag = result.repository.refs.nodes[0].name;
-    core.info(`Tag found: ${latestTag}`);
+    return initialTag;
   }
+
+  const latestTag = result.repository.refs.nodes[0].name;
+  core.info(`Tag found: ${latestTag}`);
 
   const versionPart = latestTag.substring(1);
   const versionNumbers = versionPart.split(".");
