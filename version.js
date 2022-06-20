@@ -2,7 +2,6 @@ const core = require("@actions/core");
 const github = require("@actions/github");
 
 module.exports = async (token) => {
-  const initialTag = core.getInput("initial-tag");
   const target = core.getInput("target-branch");
   const majorBranch = core.getInput("major-branch");
   const minorBranch = core.getInput("minor-branch");
@@ -24,6 +23,20 @@ module.exports = async (token) => {
   });
 
   if (result.repository.refs.nodes.length === 0) {
+    let initialTag = "";
+    switch (target) {
+      case majorBranch:
+        initialTag = "v1.0.0";
+        break;
+      case minorBranch:
+        initialTag = "v0.1.0";
+        break;
+      case patchBranch:
+        initialTag = "v0.0.1";
+        break;
+      default:
+        throw new Error(`Unknown target branch: ${target}`);
+    }
     core.info(`No tag found, creating initial tag: ${initialTag}`);
     return initialTag;
   }
