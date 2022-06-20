@@ -25,6 +25,10 @@ inputs:
     description: "Target branch which increases the major version"
     required: false
     default: null
+  initial-tag:
+    description: "If no tag has been created use this as the first one"
+    required: false
+    default: v0.0.1
 runs:
   using: "node16"
   main: "dist/index.js"
