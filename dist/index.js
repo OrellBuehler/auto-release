@@ -15,7 +15,10 @@ const groupBy = function (xs, key, subkey) {
   }, {});
 };
 
-module.exports = async (token, branch, withDescription) => {
+module.exports = async (token) => {
+  const sourceBranch = core.getInput("source-branch");
+  const withDescription = core.getBooleanInput("with-description");
+
   const octokit = github.getOctokit(token);
 
   const queryLatestTag = `query ($owner: String!, $name: String!) {
@@ -31,33 +34,46 @@ module.exports = async (token, branch, withDescription) => {
     name: github.context.repo.repo,
   });
 
+  let startDate;
+
   if (result.repository.refs.nodes.length === 0) {
-    throw new Error("No tags found");
-  }
+    const queryRepoCreationDate = `query ($owner: String!, $name: String!) {
+      repository(owner: $owner, name: $name) {
+        createdAt
+      }
+    }`;
 
-  const latestTag = result.repository.refs.nodes[0].name;
+    const resultReporCreationDate = await octokit.graphql(
+      queryRepoCreationDate,
+      {
+        owner: github.context.repo.owner,
+        name: github.context.repo.repo,
+      }
+    );
 
-  core.debug(`Latest tag: ${latestTag}`);
-
-  const queryDateOfTag = `query ($owner: String!, $name: String!, $tag: String!) {
-          repository(owner: $owner, name: $name) {
-            object(expression: $tag) {
-              ... on Commit {
-                committedDate
+    startDate = resultReporCreationDate.repository.createdAt;
+  } else {
+    const latestTag = result.repository.refs.nodes[0].name;
+    const queryDateOfTag = `query ($owner: String!, $name: String!, $tag: String!) {
+            repository(owner: $owner, name: $name) {
+              object(expression: $tag) {
+                ... on Commit {
+                  committedDate
+                }
               }
             }
-          }
-        }`;
+          }`;
 
-  const resultDateOfTag = await octokit.graphql(queryDateOfTag, {
-    owner: "OrellBuehler",
-    name: "github-changelog",
-    tag: latestTag,
-  });
+    const resultDateOfTag = await octokit.graphql(queryDateOfTag, {
+      owner: github.context.repo.owner,
+      name: github.context.repo.repo,
+      tag: latestTag,
+    });
 
-  const dateOfTag = resultDateOfTag.repository.object.committedDate;
+    startDate = resultDateOfTag.repository.object.committedDate;
+  }
 
-  core.debug(`Date of last tag: ${dateOfTag}`);
+  core.debug(`Loading commits since ${startDate} on branch ${sourceBranch}.`);
 
   const queryCommitsSinceDate = `query ($owner: String!, $name: String!, $branch: String! $date: GitTimestamp!) {
       repository(owner: $owner, name: $name) {
@@ -82,12 +98,15 @@ module.exports = async (token, branch, withDescription) => {
   const resultCommitsSinceDate = await octokit.graphql(queryCommitsSinceDate, {
     owner: github.context.repo.owner,
     name: github.context.repo.repo,
-    branch: branch,
-    date: dateOfTag,
+    branch: sourceBranch,
+    date: startDate,
   });
 
   if (resultCommitsSinceDate.repository.object.history.totalCount === 0) {
-    throw new Error("No commits found since last tag");
+    core.warning(
+      `No commits found since ${startDate} on branch ${sourceBranch}. Returning empty changelog!`
+    );
+    return "";
   }
 
   let commits = resultCommitsSinceDate.repository.object.history.nodes;
@@ -123,8 +142,8 @@ module.exports = async (token, branch, withDescription) => {
       {
         owner: github.context.repo.owner,
         name: github.context.repo.repo,
-        branch: branch,
-        date: dateOfTag,
+        branch: sourceBranch,
+        date: startDate,
         cursor: cursor,
       }
     );
@@ -147,6 +166,13 @@ module.exports = async (token, branch, withDescription) => {
   const grouped = groupBy(commits, "parsed", "type");
   delete grouped["null"]; //remove all commits without type
 
+  if (Object.keys(grouped).length === 0) {
+    core.warning(
+      `No commits matching the convention template found since ${startDate} on branch ${sourceBranch}. Returning empty changelog!`
+    );
+    return "";
+  }
+
   const ordered = Object.keys(grouped)
     .sort()
     .reduce((obj, key) => {
@@ -154,7 +180,7 @@ module.exports = async (token, branch, withDescription) => {
       return obj;
     }, {});
 
-  core.debug(ordered);
+  core.debug(`Parsed and ordered commit data:\n${JSON.stringify(ordered)}`);
 
   let changelog = "";
 
@@ -207,6 +233,7 @@ module.exports = async (token, branch, withDescription) => {
     changelog += "\n\n";
   }
 
+  core.debug(`Changelog:\n ${changelog}`);
   return changelog;
 };
 
@@ -30563,11 +30590,13 @@ module.exports = async (token, name, tagName, body) => {
 const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
 
-module.exports = async (
-  token,
-  target,
-  { majorBranch, minorBranch, patchBranch }
-) => {
+module.exports = async (token) => {
+  const initialTag = core.getInput("initial-tag");
+  const target = core.getInput("target-branch");
+  const majorBranch = core.getInput("major-branch");
+  const minorBranch = core.getInput("minor-branch");
+  const patchBranch = core.getInput("patch-branch");
+
   const octokit = github.getOctokit(token);
 
   const query = `query ($owner: String!, $name: String!) {
@@ -30583,8 +30612,15 @@ module.exports = async (
     name: github.context.repo.repo,
   });
 
-  const latestTag = result.repository.refs.nodes[0].name;
-  core.debug(`latestTag: ${latestTag}`);
+  let latestTag = initialTag;
+
+  if (result.repository.refs.nodes.length === 0) {
+    core.info(`No tag found, creating initial tag: ${initialTag}`);
+  } else {
+    latestTag = result.repository.refs.nodes[0].name;
+    core.info(`Tag found: ${latestTag}`);
+  }
+
   const versionPart = latestTag.substring(1);
   const versionNumbers = versionPart.split(".");
   var major = versionNumbers[0];
@@ -30809,34 +30845,17 @@ const changelog = __nccwpck_require__(2370);
 const version = __nccwpck_require__(3195);
 const release = __nccwpck_require__(4315);
 
-// most @actions toolkit packages have async methods
 async function run() {
   try {
     const token = core.getInput("token");
-    const target = core.getInput("target-branch");
-    const sourceBranch = core.getInput("source-branch");
-    const withDescription = core.getBooleanInput("with-description");
-    const majorBranch = core.getInput("major-branch");
-    const minorBranch = core.getInput("minor-branch");
-    const patchBranch = core.getInput("patch-branch");
 
-    core.debug(new Date().toTimeString());
+    core.debug(`Start time: ${new Date().toTimeString()}`);
 
-    const changes = await changelog(token, sourceBranch, withDescription);
-
-    core.debug(changes);
-
-    const tagName = await version(token, target, {
-      majorBranch: majorBranch,
-      minorBranch: minorBranch,
-      patchBranch: patchBranch,
-    });
-
-    core.debug(`Tag name: ${tagName}`);
-
+    const changes = await changelog(token);
+    const tagName = await version(token);
     await release(token, tagName, tagName, changes);
 
-    core.info(new Date().toTimeString());
+    core.debug(`Finish time: ${new Date().toTimeString()}`);
   } catch (error) {
     core.setFailed(error.message);
   }
