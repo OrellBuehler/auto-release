@@ -1,11 +1,13 @@
 const core = require("@actions/core");
 const github = require("@actions/github");
 
-module.exports = async (
-  token,
-  target,
-  { majorBranch, minorBranch, patchBranch }
-) => {
+module.exports = async (token) => {
+  const initialTag = core.getInput("initial-tag");
+  const target = core.getInput("target-branch");
+  const majorBranch = core.getInput("major-branch");
+  const minorBranch = core.getInput("minor-branch");
+  const patchBranch = core.getInput("patch-branch");
+
   const octokit = github.getOctokit(token);
 
   const query = `query ($owner: String!, $name: String!) {
@@ -21,8 +23,15 @@ module.exports = async (
     name: github.context.repo.repo,
   });
 
-  const latestTag = result.repository.refs.nodes[0].name;
-  core.debug(`latestTag: ${latestTag}`);
+  let latestTag = initialTag;
+
+  if (result.repository.refs.nodes.length === 0) {
+    core.info(`No tag found, creating initial tag: ${initialTag}`);
+  } else {
+    latestTag = result.repository.refs.nodes[0].name;
+    core.info(`Tag found: ${latestTag}`);
+  }
+
   const versionPart = latestTag.substring(1);
   const versionNumbers = versionPart.split(".");
   var major = versionNumbers[0];
