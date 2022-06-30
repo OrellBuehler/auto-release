@@ -9,7 +9,7 @@ const groupBy = function (xs, key, subkey) {
   }, {});
 };
 
-const commitsSinceLastReleaseDate = (octokit) => {
+const commitsSinceLastReleaseDate = async (octokit, sourceBranch, result) => {
   let startDate;
 
   if (result.repository.refs.nodes.length === 0) {
@@ -138,7 +138,7 @@ const commitsSinceLastReleaseDate = (octokit) => {
   }
 
   return commits;
-}
+};
 
 module.exports = async (token) => {
   const sourceBranch = core.getInput("source-branch");
@@ -159,7 +159,11 @@ module.exports = async (token) => {
     name: github.context.repo.repo,
   });
 
-  const commits = commitsSinceLastReleaseDate(octokit);
+  const commits = await commitsSinceLastReleaseDate(
+    octokit,
+    sourceBranch,
+    result
+  );
 
   commits.forEach((commit) => (commit["parsed"] = parser.sync(commit.message)));
 
