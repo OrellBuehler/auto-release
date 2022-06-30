@@ -144,6 +144,10 @@ module.exports = async (token) => {
   const sourceBranch = core.getInput("source-branch");
   const options = core.getInput("changelog-options");
 
+  core.info(`options: ${options}`);
+
+  const withDescription = false;
+
   const octokit = github.getOctokit(token);
 
   const queryLatestTag = `query ($owner: String!, $name: String!) {
@@ -172,7 +176,7 @@ module.exports = async (token) => {
 
   if (Object.keys(grouped).length === 0) {
     core.warning(
-      `No commits matching the convention template found since ${startDate} on branch ${sourceBranch}. Returning empty changelog!`
+      `No commits matching the convention template found on branch ${sourceBranch}. Returning empty changelog!`
     );
     return "";
   }
