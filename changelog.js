@@ -9,25 +9,7 @@ const groupBy = function (xs, key, subkey) {
   }, {});
 };
 
-module.exports = async (token) => {
-  const sourceBranch = core.getInput("source-branch");
-  const withDescription = core.getBooleanInput("with-description");
-
-  const octokit = github.getOctokit(token);
-
-  const queryLatestTag = `query ($owner: String!, $name: String!) {
-        repository(owner: $owner, name: $name) {
-            refs(refPrefix: "refs/tags/", last: 1) {
-            nodes {name}
-            }
-        }
-    }`;
-
-  const result = await octokit.graphql(queryLatestTag, {
-    owner: github.context.repo.owner,
-    name: github.context.repo.repo,
-  });
-
+const commitsSinceLastReleaseDate = (octokit) => {
   let startDate;
 
   if (result.repository.refs.nodes.length === 0) {
@@ -154,6 +136,30 @@ module.exports = async (token) => {
       resultCommitsSinceDateAfterCursor.repository.object.history.pageInfo
         .endCursor;
   }
+
+  return commits;
+}
+
+module.exports = async (token) => {
+  const sourceBranch = core.getInput("source-branch");
+  const options = core.getInput("changelog-options");
+
+  const octokit = github.getOctokit(token);
+
+  const queryLatestTag = `query ($owner: String!, $name: String!) {
+        repository(owner: $owner, name: $name) {
+            refs(refPrefix: "refs/tags/", last: 1) {
+            nodes {name}
+            }
+        }
+    }`;
+
+  const result = await octokit.graphql(queryLatestTag, {
+    owner: github.context.repo.owner,
+    name: github.context.repo.repo,
+  });
+
+  const commits = commitsSinceLastReleaseDate(octokit);
 
   commits.forEach((commit) => (commit["parsed"] = parser.sync(commit.message)));
 
