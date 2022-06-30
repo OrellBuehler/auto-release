@@ -15,25 +15,7 @@ const groupBy = function (xs, key, subkey) {
   }, {});
 };
 
-module.exports = async (token) => {
-  const sourceBranch = core.getInput("source-branch");
-  const withDescription = core.getBooleanInput("with-description");
-
-  const octokit = github.getOctokit(token);
-
-  const queryLatestTag = `query ($owner: String!, $name: String!) {
-        repository(owner: $owner, name: $name) {
-            refs(refPrefix: "refs/tags/", last: 1) {
-            nodes {name}
-            }
-        }
-    }`;
-
-  const result = await octokit.graphql(queryLatestTag, {
-    owner: github.context.repo.owner,
-    name: github.context.repo.repo,
-  });
-
+const commitsSinceLastReleaseDate = async (octokit, sourceBranch, result) => {
   let startDate;
 
   if (result.repository.refs.nodes.length === 0) {
@@ -161,6 +143,38 @@ module.exports = async (token) => {
         .endCursor;
   }
 
+  return commits;
+};
+
+module.exports = async (token) => {
+  const sourceBranch = core.getInput("source-branch");
+  const options = core.getInput("changelog-options");
+
+  core.info(`options: ${options}`);
+
+  const withDescription = false;
+
+  const octokit = github.getOctokit(token);
+
+  const queryLatestTag = `query ($owner: String!, $name: String!) {
+        repository(owner: $owner, name: $name) {
+            refs(refPrefix: "refs/tags/", last: 1) {
+            nodes {name}
+            }
+        }
+    }`;
+
+  const result = await octokit.graphql(queryLatestTag, {
+    owner: github.context.repo.owner,
+    name: github.context.repo.repo,
+  });
+
+  const commits = await commitsSinceLastReleaseDate(
+    octokit,
+    sourceBranch,
+    result
+  );
+
   commits.forEach((commit) => (commit["parsed"] = parser.sync(commit.message)));
 
   const grouped = groupBy(commits, "parsed", "type");
@@ -168,7 +182,7 @@ module.exports = async (token) => {
 
   if (Object.keys(grouped).length === 0) {
     core.warning(
-      `No commits matching the convention template found since ${startDate} on branch ${sourceBranch}. Returning empty changelog!`
+      `No commits matching the convention template found on branch ${sourceBranch}. Returning empty changelog!`
     );
     return "";
   }
