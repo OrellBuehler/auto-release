@@ -146,17 +146,67 @@ const commitsSinceLastReleaseDate = async (octokit, sourceBranch, result) => {
   return commits;
 };
 
+const getCommitsFromPr = async (octokit, sourceBranch) => {
+  //TODO: for the current config of a project, this works but needs to be updated to get the info, which PR triggered the action
+  const queryCommitsFromPr = `query ($owner: String!, $name: String!, $sourceBranch: String!) {
+    repository(owner: $owner, name: $name) {
+      ref(qualifiedName: $sourceBranch) {
+        associatedPullRequests(
+          first: 1
+          states: OPEN
+        ) {
+          edges {
+            node {
+              headRefName
+              baseRefName
+              title
+              commits(first: 100) {
+                totalCount
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+                edges {
+                  node {
+                    commit {
+                      commitUrl
+                      message
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }`;
+
+  const result = await octokit.graphql(queryCommitsFromPr, {
+    owner: github.context.repo.owner,
+    name: github.context.repo.repo,
+    sourceBranch: sourceBranch,
+  });
+
+  let commits =
+    result.repository.ref.associatedPullRequests.edges[0].node.edges.map(
+      (n) => n.node.commit
+    );
+
+  return commits;
+};
+
 module.exports = async (token) => {
   const sourceBranch = core.getInput("source-branch");
   const options = core.getInput("changelog-options");
   core.info(`changelog-options:\n${options}`);
 
   const parsedOptions = options.split("\n").map((o) => o.toLowerCase());
-  const withDescription = core.getBooleanInput("with-description"); // uncomment when backwards compatibility is removed: parsedOptions.includes(optionKeys.withDescription);
+  const withDescription = core.getBooleanInput("with-description"); // TODO: uncomment when backwards compatibility is removed: parsedOptions.includes(optionKeys.withDescription);
   const sinceLastReleaseDate = parsedOptions.includes(
     optionKeys.sinceLastReleaseDate
   );
-  const commitsFromPr = true; // uncomment when backwards compatibility is removed: parsedOptions.includes(optionKeys.commitsFromPr);
+  const commitsFromPr = true; // TODO: uncomment when backwards compatibility is removed: parsedOptions.includes(optionKeys.commitsFromPr);
 
   if (sinceLastReleaseDate && commitsFromPr) {
     throw new Error(
@@ -169,7 +219,7 @@ module.exports = async (token) => {
   const queryLatestTag = `query ($owner: String!, $name: String!) {
         repository(owner: $owner, name: $name) {
             refs(refPrefix: "refs/tags/", last: 1) {
-            nodes {name}
+             nodes {name}
             }
         }
     }`;
@@ -179,11 +229,9 @@ module.exports = async (token) => {
     name: github.context.repo.repo,
   });
 
-  const commits = await commitsSinceLastReleaseDate(
-    octokit,
-    sourceBranch,
-    result
-  );
+  const commits = !commitsFromPr
+    ? await commitsSinceLastReleaseDate(octokit, sourceBranch, result)
+    : await getCommitsFromPr(octokit, sourceBranch);
 
   commits.forEach((commit) => (commit["parsed"] = parser.sync(commit.message)));
 
