@@ -2,6 +2,12 @@ const core = require("@actions/core");
 const github = require("@actions/github");
 const parser = require("conventional-commits-parser");
 
+const optionKeys = {
+  withDescription: "with-description",
+  sinceLastReleaseDate: "since-last-release-date",
+  commitsFromPr: "commits-from-pr",
+};
+
 const groupBy = function (xs, key, subkey) {
   return xs.reduce(function (rv, x) {
     (rv[x[key][subkey]] = rv[x[key][subkey]] || []).push(x);
@@ -143,10 +149,20 @@ const commitsSinceLastReleaseDate = async (octokit, sourceBranch, result) => {
 module.exports = async (token) => {
   const sourceBranch = core.getInput("source-branch");
   const options = core.getInput("changelog-options");
+  core.info(`changelog-options:\n${options}`);
 
-  core.info(`options: ${options}`);
+  const parsedOptions = options.split("\n").map((o) => o.toLowerCase());
+  const withDescription = core.getBooleanInput("with-description"); // uncomment when backwards compatibility is removed: parsedOptions.includes(optionKeys.withDescription);
+  const sinceLastReleaseDate = parsedOptions.includes(
+    optionKeys.sinceLastReleaseDate
+  );
+  const commitsFromPr = true; // uncomment when backwards compatibility is removed: parsedOptions.includes(optionKeys.commitsFromPr);
 
-  const withDescription = false;
+  if (sinceLastReleaseDate && commitsFromPr) {
+    throw new Error(
+      `Cannot use ${optionKeys.sinceLastReleaseDate} and ${optionKeys.commitsFromPr} at the same time.`
+    );
+  }
 
   const octokit = github.getOctokit(token);
 

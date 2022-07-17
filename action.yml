@@ -11,9 +11,13 @@ inputs:
   source-branch:
     description: "Source branch of the action, used to get the commit messages since the last version tag"
     required: true
+  with-description:
+    description: "When set adds the body of the commit to the changelog"
+    required: false
+    default: false
   changelog-options:
     description: "Options for the changelog generation, see the documentation for more info"
-    required: true
+    required: false
   minor-branch:
     description: "Target branch which increases the minor version"
     required: true
