@@ -194,6 +194,8 @@ const getCommitsFromPr = async (octokit, sourceBranch) => {
     sourceBranch: sourceBranch,
   });
 
+  core.debug("result from queryCommitsFromPr: " + JSON.stringify(result));
+
   let commits =
     result.repository.ref.associatedPullRequests.edges[0].node.edges.map(
       (n) => n.node.commit
