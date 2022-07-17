@@ -182,11 +182,15 @@ const getCommitsFromPr = async (octokit, sourceBranch) => {
     }
   }`;
 
-  const result = await octokit.graphql(queryCommitsFromPr, {
+  const params = {
     owner: github.context.repo.owner,
     name: github.context.repo.repo,
     sourceBranch: sourceBranch,
-  });
+  };
+
+  const result = await octokit.graphql(queryCommitsFromPr, params);
+
+  core.debug("query parameters: ", JSON.stringify(params));
 
   core.debug("result from queryCommitsFromPr: " + JSON.stringify(result));
 
