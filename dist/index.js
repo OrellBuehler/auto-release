@@ -187,20 +187,16 @@ const getCommitsFromPr = async (octokit, sourceBranch) => {
     }
   }`;
 
-  const params = {
+  const result = await octokit.graphql(queryCommitsFromPr, {
     owner: github.context.repo.owner,
     name: github.context.repo.repo,
     sourceBranch: sourceBranch,
-  };
-
-  const result = await octokit.graphql(queryCommitsFromPr, params);
-
-  core.debug("query parameters: ", JSON.stringify(params));
+  });
 
   core.debug("result from queryCommitsFromPr: " + JSON.stringify(result));
 
   let commits =
-    result.repository.ref.associatedPullRequests.edges[0].node.edges.map(
+    result.repository.ref.associatedPullRequests.edges[0].node.commits.edges.map(
       (n) => n.node.commit
     );
 
