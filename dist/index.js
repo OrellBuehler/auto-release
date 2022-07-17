@@ -159,7 +159,6 @@ const getCommitsFromPr = async (octokit, sourceBranch) => {
       ref(qualifiedName: $sourceBranch) {
         associatedPullRequests(
           first: 1
-          states: OPEN
         ) {
           edges {
             node {
